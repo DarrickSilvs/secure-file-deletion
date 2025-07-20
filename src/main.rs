@@ -6,28 +6,29 @@ use std::{
 };
 
 #[derive(Parser, Debug)]
+#[command(name = "shredder", version, about = "Secure file deletion")]
 pub struct Arguments {
     // path to the file to shred
-    file_path: PathBuf,
+    pub file_path: PathBuf,
+
+    #[arg(short, long, default_value_t = 1)]
+    pub passes: u8,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Arguments::parse();
-    let file_path = args.file_path;
-
-    if file_path.is_dir() {
+pub fn file_shred(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    if path.is_dir() {
         println!("Directory is not supported for removal.")
     }
 
-    let size = fs::metadata(&file_path)
-                .with_context(|| format!("Could not access file metadata: {}", file_path.display()))?
+    let size = fs::metadata(&path)
+                .with_context(|| format!("Could not access file metadata: {}", path.display()))?
                 .len();
 
     let mut file = OpenOptions::new()
                             .write(true)
                             .truncate(true)
-                            .open(&file_path)
-                            .with_context(|| format!("Could not open/write file: {}", file_path.display()))?;
+                            .open(&path)
+                            .with_context(|| format!("Could not open/write file: {}", path.display()))?;
     
     let mut remaining = size;
     const CHUNK_SIZE: usize = 8192; // 8192 is 8kb, commonly used by OS for buffer size
@@ -41,8 +42,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         remaining -= to_write as u64;
     }
-    file.sync_all().with_context(|| format!("Failed syncing: {}", file_path.display()))?;
+    file.sync_all().with_context(|| format!("Failed syncing: {}", path.display()))?;
     drop(file);
 
     Ok(())
+}
+
+fn main() {
+    let file_path = Arguments::parse().file_path;
+    let passes = Arguments::parse().passes;
+
+    for _ in 0..passes {
+        let _ = file_shred(&file_path);
+    }
 }
