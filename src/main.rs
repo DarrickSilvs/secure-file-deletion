@@ -49,7 +49,7 @@ pub fn file_shred(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn file_rename(path: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
+pub fn file_remove(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let file_name = path.file_name()
                                 .with_context(|| format!("File name not found in: {}", path.display()))?
                                 .to_string_lossy();
@@ -70,7 +70,10 @@ pub fn file_rename(path: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>
     fs::rename(path, &new_path)
         .with_context(|| format!("Failed to rename {} to {}", path.display(), new_path.display()))?;
 
-    Ok(new_path)
+    fs::remove_file(&new_path)
+        .with_context(|| format!("Failed to remove file: {}", &new_path.display()))?;
+
+    Ok(())
 }
 
 fn main() {
@@ -79,7 +82,7 @@ fn main() {
 
     for _ in 0..passes {
         let _ = file_shred(&file_path);
-        let new_path = file_rename(&file_path);
+        let _= file_remove(&file_path);
     }
 
 
