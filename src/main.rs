@@ -1,6 +1,7 @@
 use clap::Parser;
 use anyhow::{Context, Result};
 use rand_core::{TryRngCore, OsRng};
+use rand::distr::{Distribution, Alphanumeric};
 use std::{
     fs::{self, OpenOptions}, io::Write, path::PathBuf
 };
@@ -48,11 +49,38 @@ pub fn file_shred(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+pub fn file_rename(path: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let file_name = path.file_name()
+                                .with_context(|| format!("File name not found in: {}", path.display()))?
+                                .to_string_lossy();
+
+    let name_len = file_name.chars().count();
+    let mut rng = rand::rng();
+    let random_name: String = Alphanumeric
+        .sample_iter(&mut rng)
+        .take(name_len)
+        .map(char::from)
+        .collect();
+    
+    let new_path = match path.parent() {
+        Some(parent) => parent.join(&random_name),
+        None => PathBuf::from(&random_name),
+    };
+
+    fs::rename(path, &new_path)
+        .with_context(|| format!("Failed to rename {} to {}", path.display(), new_path.display()))?;
+
+    Ok(new_path)
+}
+
 fn main() {
     let file_path = Arguments::parse().file_path;
     let passes = Arguments::parse().passes;
 
     for _ in 0..passes {
         let _ = file_shred(&file_path);
+        let new_path = file_rename(&file_path);
     }
+
+
 }
