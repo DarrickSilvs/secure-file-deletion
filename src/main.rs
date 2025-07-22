@@ -95,6 +95,6 @@ fn main() {
     for _ in 0..passes {
         let _ = file_shred(&file_path);
         let _ = time_metadata_remove(&file_path);
-        // let _= file_remove(&file_path);
+        let _= file_remove(&file_path);
     }
 }
