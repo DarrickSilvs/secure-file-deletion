@@ -3,7 +3,8 @@ use anyhow::{Context, Result};
 use rand_core::{TryRngCore, OsRng};
 use rand::distr::{Distribution, Alphanumeric};
 use std::{
-    fs::{self, OpenOptions}, io::Write, path::PathBuf
+    fs::{self, File, FileTimes, OpenOptions},
+    io::Write, path::PathBuf, time::SystemTime
 };
 
 #[derive(Parser, Debug)]
@@ -76,14 +77,24 @@ pub fn file_remove(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+pub fn time_metadata_remove(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let file = File::create(path).unwrap();
+    let times = FileTimes::new()
+        .set_accessed(SystemTime::UNIX_EPOCH)
+        .set_modified(SystemTime::UNIX_EPOCH);
+
+    file.set_times(times).
+        with_context(|| format!("Failed removing timestamps for file: {}", path.display()))?;
+    
+    Ok(())
+}
 fn main() {
     let file_path = Arguments::parse().file_path;
     let passes = Arguments::parse().passes;
 
     for _ in 0..passes {
         let _ = file_shred(&file_path);
-        let _= file_remove(&file_path);
+        let _ = time_metadata_remove(&file_path);
+        // let _= file_remove(&file_path);
     }
-
-
 }

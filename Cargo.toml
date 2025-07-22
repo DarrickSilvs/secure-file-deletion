@@ -8,3 +8,4 @@ anyhow = "1.0.98"
 clap = { version = "4.5.41", features = ["derive"] }
 rand = "0.9.1"
 rand_core = "0.9.3"
+time = "0.3.41"
