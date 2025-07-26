@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use rand_core::{TryRngCore, OsRng};
 use rand::distr::{Distribution, Alphanumeric};
 use std::{
-    fs::{self, File, FileTimes, OpenOptions},
+    fs::{self, FileTimes, OpenOptions},
     io::Write, path::PathBuf, time::SystemTime
 };
 
@@ -28,7 +28,6 @@ pub fn file_shred(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut file = OpenOptions::new()
                             .write(true)
-                            .truncate(true)
                             .open(&path)
                             .with_context(|| format!("Could not open/write file: {}", path.display()))?;
     
@@ -78,7 +77,11 @@ pub fn file_remove(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn time_metadata_remove(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    let file = File::create(path).unwrap();
+    let file = OpenOptions::new()
+                        .write(true)
+                        .open(path)
+                        .with_context(|| format!("Failed to open file for metadata update: {}", path.display()))?;
+
     let times = FileTimes::new()
         .set_accessed(SystemTime::UNIX_EPOCH)
         .set_modified(SystemTime::UNIX_EPOCH);
