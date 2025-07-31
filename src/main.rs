@@ -1,5 +1,5 @@
 use clap::Parser;
-use anyhow::{Context, Result};
+use anyhow::{Context, Ok, Result};
 use rand_core::{TryRngCore, OsRng};
 use rand::distr::{Distribution, Alphanumeric};
 use std::{
@@ -14,10 +14,10 @@ pub struct Arguments {
     pub file_path: PathBuf,
 
     #[arg(short, long, default_value_t = 1)]
-    pub passes: u8,
+    pub passes: u32,
 }
 
-pub fn file_shred(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+pub fn file_shred(path: &PathBuf) -> Result<(), anyhow::Error> {
     if path.is_dir() {
         println!("Directory is not supported for removal.")
     }
@@ -49,7 +49,7 @@ pub fn file_shred(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn file_remove(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+pub fn file_rename(path: &PathBuf) -> Result<PathBuf, anyhow::Error> {
     let file_name = path.file_name()
                                 .with_context(|| format!("File name not found in: {}", path.display()))?
                                 .to_string_lossy();
@@ -67,16 +67,15 @@ pub fn file_remove(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         None => PathBuf::from(&random_name),
     };
 
+    println!("Renamed to: {}", &new_path.display());
+
     fs::rename(path, &new_path)
         .with_context(|| format!("Failed to rename {} to {}", path.display(), new_path.display()))?;
 
-    fs::remove_file(&new_path)
-        .with_context(|| format!("Failed to remove file: {}", &new_path.display()))?;
-
-    Ok(())
+    Ok(new_path)
 }
 
-pub fn time_metadata_remove(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+pub fn time_metadata_remove(path: &PathBuf) -> Result<(), anyhow::Error> {
     let file = OpenOptions::new()
                         .write(true)
                         .open(path)
@@ -91,13 +90,17 @@ pub fn time_metadata_remove(path: &PathBuf) -> Result<(), Box<dyn std::error::Er
     
     Ok(())
 }
-fn main() {
-    let file_path = Arguments::parse().file_path;
+fn main() -> Result<(), anyhow::Error> {
+    let mut file_path = Arguments::parse().file_path;
     let passes = Arguments::parse().passes;
-
     for _ in 0..passes {
-        let _ = file_shred(&file_path);
-        let _ = time_metadata_remove(&file_path);
-        let _= file_remove(&file_path);
+        let _ = file_shred(&file_path)?;
+        let _ = time_metadata_remove(&file_path)?;
+        file_path = file_rename(&file_path)?;
     }
+
+    fs::remove_file(&file_path)
+        .with_context(|| format!("Failed to remove file: {}", &file_path.display()))?;
+
+    Ok(())
 }
